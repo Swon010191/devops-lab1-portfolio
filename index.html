@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="DevOps Lab 1 — portfolio cá nhân của sinh viên, trang web tĩnh được build và deploy tự động bằng GitHub Actions CI/CD.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23000'/><text x='50' y='74' font-size='64' text-anchor='middle' fill='%23fff' font-family='sans-serif'>D</text></svg>">
     <title>DevOps Lab 1 — My Portfolio</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -24,7 +26,7 @@
             text-align: center;
         }
         h1 { color: #010101; margin-bottom: 8px; font-size: 32px; }
-        h2 { color: #03ff1c; margin-bottom: 24px; font-size: 18px; font-weight: normal; }
+        h2 { color: #15803d; margin-bottom: 24px; font-size: 18px; font-weight: normal; }
         .info { background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 16px 0; text-align: left; }
         .info p { margin: 8px 0; }
         .badge {
@@ -36,13 +38,13 @@
             font-size: 14px;
             margin: 4px;
         }
-        .footer { margin-top: 24px; font-size: 13px; color: #999; }
-        .status { color: #38a169; font-weight: bold; }
+        .footer { margin-top: 24px; font-size: 13px; color: #6b6b6b; }
+        .status { color: #276749; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <img src="./Son.png" style="width: 120px; height: 120px; border-radius: 50%; margin-bottom: 16px;" alt="Avatar">
+    <main class="container">
+        <img src="data:image/webp;base64,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" width="120" height="120" fetchpriority="high" decoding="async" alt="Ảnh chân dung của tôi" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: 16px;">
         <h1> Hello, DevOps!</h1>
         <h2>Lab 1 niganiganiga</h2>
 
@@ -60,7 +62,7 @@
             <span class="badge">CSS3</span>
             <a href="https://youtu.be/dQw4w9WgXcQ?si=CK0eqKa7a4w19bEa"> 
                 <span class="badge">JavaScript</span>
-            <a>
+            </a>
             <span class="badge">Git</span>
             <span class="badge">GitHub Actions</span>
             <span class="badge">CI/CD</span>
@@ -71,10 +73,10 @@
             <p>Deployed automatically via GitHub Actions Pipeline</p>
             <p> Push code → CI Build → Auto Deploy → Live! </p>
         </div>
-    </div>
+    </main>
 
     <script>
-        document.getElementById('date').textContent = new Date().toLocaleDateString('vi-VN');
+        document.getElementById('date').textContent=new Date().toLocaleDateString('vi-VN');
     </script>
 </body>
 </html>
