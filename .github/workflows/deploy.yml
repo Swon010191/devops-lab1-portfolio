@@ -42,5 +42,3 @@ jobs:
           publish_dir: ./
           publish_branch: gh-pages
           commit_message: "Auto-deploy from CI pipeline"
-
-        ## Step 4: abcabc
