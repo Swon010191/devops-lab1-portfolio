@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Roach Disco</title>
+<style>
+:root{--bg:#120c1c;--ink:#f6e9ff;--btn:#2a1d3d;--on:#ff4fa3;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Trebuchet MS","Segoe UI",sans-serif;overflow:hidden}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+h1{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);left:18px;margin:0;font-size:clamp(20px,4vw,32px);font-weight:800;letter-spacing:-.5px;text-shadow:0 2px 0 #000a}
+#bar{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:0 12px}
+button{font:inherit;font-weight:700;color:var(--ink);background:var(--btn);border:2px solid #4a3668;border-radius:999px;padding:9px 16px;cursor:pointer}
+button:hover{border-color:var(--on)}
+button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+button[aria-pressed="true"]{background:var(--on);border-color:var(--on);color:#1a0b14}
+</style>
+</head>
+<body>
+<h1>Roach Disco</h1>
+<canvas id="c" aria-label="A cockroach dancing on a disco floor"></canvas>
+<div id="bar">
+  <button data-m="auto" aria-pressed="true">Auto</button>
+  <button data-m="0" aria-pressed="false">Shimmy</button>
+  <button data-m="1" aria-pressed="false">Spin</button>
+  <button data-m="2" aria-pressed="false">Bounce</button>
+  <button data-m="3" aria-pressed="false">Point</button>
+  <button id="mus" aria-pressed="false">Play music</button>
+</div>
+<script>
+const cv=document.getElementById('c'),g=cv.getContext('2d');
+let W,H,D;
+function size(){D=window.devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*D;cv.height=H*D;g.setTransform(D,0,0,D,0,0)}
+addEventListener('resize',size);size();
+
+const BPM=124,BPS=BPM/60;
+let mode='auto';
+document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{
+  mode=b.dataset.m;
+  document.querySelectorAll('[data-m]').forEach(x=>x.setAttribute('aria-pressed',x===b));
+});
+
+/* ---------- music ---------- */
+let ac=null,timer=null,step=0,next=0,musicOn=false;
+function tone(t,f,d,type,v){const o=ac.createOscillator(),a=ac.createGain();o.type=type;o.frequency.value=f;
+  a.gain.setValueAtTime(v,t);a.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(a).connect(ac.destination);o.start(t);o.stop(t+d)}
+function kick(t){const o=ac.createOscillator(),a=ac.createGain();o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(40,t+.15);
+  a.gain.setValueAtTime(.9,t);a.gain.exponentialRampToValueAtTime(.001,t+.25);o.connect(a).connect(ac.destination);o.start(t);o.stop(t+.3)}
+const bass=[55,55,82.4,55,65.4,65.4,98,73.4];
+function sched(){
+  while(next<ac.currentTime+.15){
+    const s=step%8;
+    if(s%2===0)kick(next);
+    if(s%2===1)tone(next,7000,.04,'square',.04);
+    tone(next,bass[s],.22,'sawtooth',.12);
+    if(s===4||s===12%8&&false)tone(next,440,.1,'triangle',.05);
+    next+=60/BPM/2;step++;
+  }
+}
+document.getElementById('mus').onclick=e=>{
+  const b=e.currentTarget;
+  if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();
+  if(!musicOn){ac.resume();next=ac.currentTime+.05;timer=setInterval(sched,25);musicOn=true;b.textContent='Stop music'}
+  else{clearInterval(timer);musicOn=false;b.textContent='Play music'}
+  b.setAttribute('aria-pressed',musicOn);
+};
+
+/* ---------- dance ---------- */
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function pose(m,b){
+  const w=b*Math.PI*2;
+  const P={x:0,y:0,rot:0,sc:1,amp:.35,fr:2,wing:.12,ant:Math.sin(w)*.5,point:null};
+  if(m===0){P.x=Math.sin(w/2)*40;P.rot=Math.sin(w)*.2;P.wing=.1+.15*Math.abs(Math.sin(w))}
+  if(m===1){P.rot=b*1.4;P.amp=.5;P.wing=.5+.4*Math.sin(w*2);P.ant=Math.sin(w*2)}
+  if(m===2){const j=Math.abs(Math.sin(w/2));P.y=-j*70;P.sc=1+.12*j;P.amp=-.7*j;P.fr=0;P.wing=.9*j;P.rot=Math.sin(w/2)*.1}
+  if(m===3){P.rot=Math.sin(w/2)*.12;P.x=Math.sin(w/2)*20;P.amp=.25;P.point=(Math.floor(b)%2)?-1:1;P.wing=.15}
+  return P;
+}
+const moves=[0,2,3,1];
+const LEG=[{r:0,a:-.75,d:-.5,y:-15},{r:1,a:.05,d:.15,y:3},{r:2,a:.85,d:.5,y:21}];
+
+function leg(side,L,P,w,S){
+  const bx=side*9,by=L.y;
+  const phase=((L.r+(side>0?1:0))%2)*Math.PI;
+  let sw=P.fr?Math.sin(w*P.fr+phase)*P.amp:P.amp;
+  let a1=L.a+sw,a2=a1+L.d,k=1;
+  if(P.point===side&&L.r===0){a1=-1.0+Math.sin(w*2)*.35;a2=a1-.1;k=1.35}
+  const kx=bx+side*Math.cos(a1)*26*k,ky=by+Math.sin(a1)*26*k;
+  const fx=kx+side*Math.cos(a2)*30*k,fy=ky+Math.sin(a2)*30*k;
+  g.beginPath();g.moveTo(bx,by);g.lineTo(kx,ky);g.lineTo(fx,fy);
+  g.lineWidth=4;g.strokeStyle='#4a230d';g.lineCap='round';g.lineJoin='round';g.stroke();
+  g.lineWidth=1.5;g.strokeStyle='#8a4a1f';g.stroke();
+  g.beginPath();g.arc(kx,ky,2.6,0,7);g.fillStyle='#3a1a08';g.fill();
+}
+function ell(x,y,rx,ry,rot){g.beginPath();g.ellipse(x,y,rx,ry,rot||0,0,Math.PI*2)}
+function antenna(side,P){
+  const s=P.ant*side*.6+(side*.05);
+  g.beginPath();g.moveTo(side*4,-41);
+  g.bezierCurveTo(side*(14+s*20),-70,side*(34+s*30),-88+s*10,side*(48+s*40),-96+Math.sin(s*3)*6);
+  g.lineWidth=2;g.strokeStyle='#3a1a08';g.lineCap='round';g.stroke();
+}
+function roach(P,w,S){
+  /* shadow */
+  g.save();g.globalAlpha=.35;g.fillStyle='#000';ell(8,16+Math.max(0,-P.y)*.5,28,44);g.fill();g.restore();
+  [-1,1].forEach(s=>LEG.forEach(L=>leg(s,L,P,w,S)));
+  [-1,1].forEach(s=>antenna(s,P));
+  /* abdomen */
+  const gr=g.createRadialGradient(-6,6,4,0,16,40);
+  gr.addColorStop(0,'#b0602a');gr.addColorStop(.6,'#6b3213');gr.addColorStop(1,'#2e1305');
+  ell(0,16,19,36);g.fillStyle=gr;g.fill();
+  /* wings */
+  [-1,1].forEach(s=>{
+    g.save();g.translate(s*3,-4);g.rotate(s*P.wing*.9);
+    ell(s*7,28,11,34,s*.05);
+    const wg=g.createLinearGradient(0,0,s*14,60);wg.addColorStop(0,'#9a521f');wg.addColorStop(1,'#5a2a0e');
+    g.fillStyle=wg;g.fill();g.lineWidth=1;g.strokeStyle='#2e1305';g.stroke();
+    g.beginPath();g.moveTo(s*3,0);g.lineTo(s*8,56);g.strokeStyle='#c98550';g.globalAlpha=.5;g.stroke();
+    g.restore();
+  });
+  /* pronotum */
+  const pg=g.createRadialGradient(-4,-22,2,0,-18,18);pg.addColorStop(0,'#d78a48');pg.addColorStop(1,'#5a2a0e');
+  ell(0,-19,16,13);g.fillStyle=pg;g.fill();g.lineWidth=1.5;g.strokeStyle='#2e1305';g.stroke();
+  /* head */
+  ell(0,-36,8.5,9);g.fillStyle='#3a1a08';g.fill();
+  /* shades */
+  g.fillStyle='#050505';
+  g.beginPath();g.roundRect(-8,-40,7,6,2);g.fill();
+  g.beginPath();g.roundRect(1,-40,7,6,2);g.fill();
+  g.fillRect(-2,-39,4,1.6);
+  g.fillStyle='#ffffff55';g.fillRect(-6.5,-39,2,1.5);g.fillRect(2.5,-39,2,1.5);
+  /* smile */
+  g.beginPath();g.arc(0,-32,3.5,.15*Math.PI,.85*Math.PI);g.lineWidth=1.3;g.strokeStyle='#f3c8a0';g.stroke();
+}
+
+/* ---------- floor ---------- */
+function floor(b,cx,cy){
+  const T=Math.max(44,Math.min(W,H)/10);
+  const cols=Math.ceil(W/T)+1,rows=Math.ceil(H/T)+1;
+  const beat=1-(b%1);
+  for(let i=0;i<cols;i++)for(let j=0;j<rows;j++){
+    const x=i*T,y=j*T;
+    const d=Math.hypot(x+T/2-cx,y+T/2-cy)/T;
+    const wave=Math.max(0,Math.sin(d*1.1-b*Math.PI*2*.5));
+    const hue=(i*18+j*26+b*40)%360;
+    const l=14+wave*30+beat*beat*8;
+    g.fillStyle=`hsl(${hue} 80% ${l}%)`;
+    g.fillRect(x+1.5,y+1.5,T-3,T-3);
+  }
+  const rg=g.createRadialGradient(cx,cy,10,cx,cy,Math.max(W,H)*.7);
+  rg.addColorStop(0,'rgba(18,12,28,0)');rg.addColorStop(1,'rgba(18,12,28,.85)');
+  g.fillStyle=rg;g.fillRect(0,0,W,H);
+}
+
+/* ---------- loop ---------- */
+const t0=performance.now();
+function frame(now){
+  const t=(now-t0)/1000,b=t*BPS;
+  const cx=W/2,cy=H/2-20;
+  g.clearRect(0,0,W,H);
+  floor(reduce?0:b,cx,cy);
+  const m=mode==='auto'?moves[Math.floor(b/8)%4]:+mode;
+  const P=pose(m,reduce?0:b);
+  const S=Math.min(W,H)/300+.3;
+  g.save();
+  g.translate(cx+P.x*S,cy+P.y*S);
+  g.rotate(P.rot);
+  g.scale(S*P.sc,S*P.sc);
+  roach(P,b*Math.PI*2,S);
+  g.restore();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
